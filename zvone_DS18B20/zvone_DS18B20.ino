@@ -27,9 +27,31 @@
  * https://thingpulse.com
  *
  */
+////// DS18B20 1-Wire sensor
+#include <OneWire.h>
+#include <DallasTemperature.h>
+// Data wire is plugged into digital pin 2 on the Arduino
+#define ONE_WIRE_BUS 15
+// Setup a oneWire instance to communicate with any OneWire device
+OneWire oneWire(ONE_WIRE_BUS);  
+// Pass oneWire reference to DallasTemperature library
+DallasTemperature sensors(&oneWire);
+// variable to hold device addresses
+DeviceAddress Thermometer;
+
+int deviceCount = 0;
+float tempC;
+
+uint8_t sensor1[8] = {  0x28, 0xFF, 0x64, 0x1E, 0x01, 0xDA, 0x1F, 0xA3};
+uint8_t sensor2[8] = {  0x28, 0xFF, 0x64, 0x1E, 0x01, 0xD6, 0xD4, 0x04};
+uint8_t sensor3[8] = {  0x28, 0xFF, 0x64, 0x1E, 0x01, 0xE5, 0x60, 0x2F};
+uint8_t sensor4[8] = {  0x28, 0xFF, 0x64, 0x1E, 0x01, 0xE5, 0x77, 0x31};
+
+
+ 
 #define uS_TO_S_FACTOR 1000000 /* Conversion factor for micro seconds to seconds */ 
-// 300=5 min
-#define TIME_TO_SLEEP 300 /* Time ESP32 will go to sleep (in seconds) */ 
+// 60=1 min
+#define TIME_TO_SLEEP 60 /* Time ESP32 will go to sleep (in seconds) */ 
 #include <SPI.h>  //OLED
 #include <WiFi.h>  
 #include <PubSubClient.h> //MQTT client
@@ -44,17 +66,24 @@ char pass[] = "Laminar68";
 char wifi_local_IP[] = "SSID: Valkyrie";
 //"0.0.0.0";
 char wifi_status[]   = "X";
-char wifi_gateway_IP[] ="PASS: Laminar68";
-char mqtt_server_IP[] =  "MQTT: 0.0.0.0:1883";
-char scale_weight[] = "? kg";
-char scale_internal_temperature[] = "? °C";
-char scale_humidity[] = "? %";
-char scale_temp_ext1[] = "? °C";
-char scale_temp_ext2[] = "? °C";
+char wifi_gateway_IP[] ="PASS: 12345678Aa";
+//char mqtt_server_IP[] =  "MQTT: 0.0.0.0:1883";
+char mqtt_server_IP[] =  "MQTT: 192.168.0.11:1883";
+
+char sensor_1_temp[20] = "? °C";
+char sensor_2_temp[20] = "? °C";
+char sensor_3_temp[20] = "? °C";
+char sensor_4_temp[20] = "? °C";
+
+char sensor_1_temp_short[20] = "...";
+char sensor_2_temp_short[20] = "...";
+char sensor_3_temp_short[20] = "...";
+char sensor_4_temp_short[20] = "...";
+
 byte mac[6];
 // Add your MQTT Broker IP address, example:
 //const char* mqtt_server = "192.168.1.144";
-//const char* mqtt_server = "192.168.43.2";
+const char* mqtt_server = "192.168.0.50";
 WiFiClient espClient;
 PubSubClient client(espClient);
 long lastMsg = 0;
@@ -86,18 +115,85 @@ void msOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
   display->drawString(128, 0, String(millis()));
   display->drawString(90, 0, wifi_status);
 }
+void drawFrame0(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  // draw an xbm image.
+  // Please note that everything that should be transitioned
+  // needs to be drawn relative to x and y
+  strcpy(prog_status, "(´･_･`) DS18B20");
+  display->setTextAlignment(TEXT_ALIGN_LEFT);
+  display->setFont(ArialMT_Plain_16);
+  display->drawString(5 + x, 16 + y, sensor_1_temp_short);
+  display->drawString(5 + x, 34 + y, sensor_3_temp_short);
+
+  display->setTextAlignment(TEXT_ALIGN_RIGHT);
+    display->setFont(ArialMT_Plain_16);
+  display->drawString(110 + x, 16 + y, sensor_2_temp_short);
+  display->drawString(110 + x, 34 + y, sensor_4_temp_short);
+
+
+
+ 
+}
 void drawFrame1(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
   // draw an xbm image.
   // Please note that everything that should be transitioned
   // needs to be drawn relative to x and y
-  strcpy(prog_status, "VAGA");
+  int n;
+  char sensorID[20];
+  n=sprintf (sensorID, "ID=%02X%02X%02X", sensor1[5], sensor1[6], sensor1[7]);
+  strcpy(prog_status, sensorID);
   display->setTextAlignment(TEXT_ALIGN_CENTER);
   display->setFont(ArialMT_Plain_24);
-  display->drawString(64 + x, 20 + y, scale_weight);
-  Serial.println(scale_weight);
-  // display->drawXbm(x + 34, y + 14, WiFi_Logo_width, WiFi_Logo_height, WiFi_Logo_bits);
+  display->drawString(64 + x, 20 + y, sensor_1_temp);
+  display->setTextAlignment(TEXT_ALIGN_LEFT);
+  display->setFont(ArialMT_Plain_16);
+  display->drawString(0 + x, 20 + y, "T1");
+  display->setTextAlignment(TEXT_ALIGN_RIGHT);
+  display->drawString(128 + x, 20 + y, "°C");    
 }
 void drawFrame2(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  int n;
+  char sensorID[20];
+  n=sprintf (sensorID, "ID=%02X%02X%02X", sensor2[5], sensor2[6], sensor2[7]);
+  strcpy(prog_status, sensorID);
+  display->setTextAlignment(TEXT_ALIGN_CENTER);
+  display->setFont(ArialMT_Plain_24);
+  display->drawString(64 + x, 20 + y, sensor_2_temp);
+  display->setTextAlignment(TEXT_ALIGN_LEFT);
+  display->setFont(ArialMT_Plain_16);
+  display->drawString(0 + x, 20 + y, "T2");
+  display->setTextAlignment(TEXT_ALIGN_RIGHT);
+  display->drawString(128 + x, 20 + y, "°C");    
+}
+void drawFrame3(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  int n;
+  char sensorID[20];
+  n=sprintf (sensorID, "ID=%02X%02X%02X", sensor3[5], sensor3[6], sensor3[7]);
+  strcpy(prog_status, sensorID);
+  display->setTextAlignment(TEXT_ALIGN_CENTER);
+  display->setFont(ArialMT_Plain_24);
+  display->drawString(64 + x, 20 + y, sensor_3_temp);
+   display->setTextAlignment(TEXT_ALIGN_LEFT);
+  display->setFont(ArialMT_Plain_16);
+  display->drawString(0 + x, 20 + y, "T3");
+  display->setTextAlignment(TEXT_ALIGN_RIGHT);
+  display->drawString(128 + x, 20 + y, "°C");      
+}
+void drawFrame4(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  int n;
+  char sensorID[20];
+  n=sprintf (sensorID, "ID=%02X%02X%02X", sensor4[5], sensor4[6], sensor4[7]);
+  strcpy(prog_status, sensorID);
+  display->setTextAlignment(TEXT_ALIGN_CENTER);
+  display->setFont(ArialMT_Plain_24);
+  display->drawString(64 + x, 20 + y, sensor_4_temp);
+   display->setTextAlignment(TEXT_ALIGN_LEFT);
+  display->setFont(ArialMT_Plain_16);
+  display->drawString(0 + x, 20 + y, "T4");
+  display->setTextAlignment(TEXT_ALIGN_RIGHT);
+  display->drawString(128 + x, 20 + y, "°C");      
+}
+void drawFrame5(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
   // Demonstrates the 3 included default sizes. The fonts come from SSD1306Fonts.h file
   // Besides the default fonts there will be a program to convert TrueType fonts into this format
   strcpy(prog_status, "WIFI");
@@ -107,36 +203,14 @@ void drawFrame2(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int1
   display->drawString(0 + x, 26 + y, wifi_gateway_IP);
   display->drawString(0 + x, 38 + y, mqtt_server_IP);
 }
-void drawFrame3(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  strcpy(prog_status, "TEMP, VLAGA");
-  display->setFont(ArialMT_Plain_16);
-  // The coordinates define the left starting point of the text
-  display->setTextAlignment(TEXT_ALIGN_LEFT);
-  display->drawString(5 + x, 14 + y, scale_internal_temperature);
-  display->drawString(5 + x, 32 + y, scale_humidity);
-  // The coordinates define the right end of the text
-  display->setTextAlignment(TEXT_ALIGN_RIGHT);
-  display->drawString(123 + x, 14 + y, scale_temp_ext1);
-  display->drawString(123 + x, 32 + y, scale_temp_ext2);
-}
-void drawFrame4(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  // Demo for drawStringMaxWidth:
-  // with the third parameter you can define the width after which words will be wrapped.
-  // Currently only spaces and "-" are allowed for wrapping
-  display->setTextAlignment(TEXT_ALIGN_LEFT);
-  display->setFont(ArialMT_Plain_10);
-  display->drawStringMaxWidth(0 + x, 10 + y, 128, "Predrag Lorem ipsum\n dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.");
-}
-void drawFrame5(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-}
 // This array keeps function pointers to all frames
 // frames are the single views that slide in
 FrameCallback frames[] = {
-  drawFrame1, drawFrame2, drawFrame3, drawFrame4, drawFrame5
+  drawFrame5,drawFrame0,drawFrame1, drawFrame2, drawFrame3, drawFrame4
 }
 ;
 // how many frames are there?
-int frameCount = 5;
+int frameCount = 6;
 // Overlays are statically drawn on top of a frame eg. a clock
 OverlayCallback overlays[] = {
   msOverlay
@@ -150,8 +224,29 @@ int overlaysCount = 1;
 ///////////////////////////////////////////////
 void setup() {
   Serial.begin(115200);
-  Serial.println();
-  Serial.println();
+  Serial.println("Serial port open - speed 115200");
+
+  sensors.begin();  // Start up the library
+  // locate devices on the bus
+  Serial.print("Locating devices...");
+  Serial.print("Found ");
+  deviceCount = sensors.getDeviceCount();
+  Serial.print(deviceCount, DEC);
+  Serial.println(" DS18B20 devices.");
+  Serial.println(".");
+
+
+  Serial.println("Printing addresses...");
+  for (int i = 0;  i < deviceCount;  i++)
+  {
+    Serial.print("Sensor ");
+    Serial.print(i+1);
+    Serial.print(" : ");
+    sensors.getAddress(Thermometer, i);
+    printAddress(Thermometer);
+  }
+
+
   delay(500);
   ////////////////////////////////////////////////
    // The ESP is capable of rendering 60fps in 80Mhz mode
@@ -184,11 +279,26 @@ void setup() {
   //  client.setCallback(callback); 
   ////////////////////////////////////////////
 }
+
+void printAddress(DeviceAddress deviceAddress)
+{ 
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    Serial.print("0x");
+    if (deviceAddress[i] < 0x10) Serial.print("0");
+    Serial.print(deviceAddress[i], HEX);
+    if (i < 7) Serial.print(", ");
+  }
+  Serial.println("");
+}
+
+
+
 void setup_wifi() {
   delay(10);
 
   // We start by connecting to a WiFi network
-  Serial.println();
+  Serial.println("______________");
   Serial.print("Connecting to ");
   Serial.println(ssid);
   WiFi.begin(ssid, pass);
@@ -200,15 +310,16 @@ void setup_wifi() {
   }
   if(WiFi.status() == WL_CONNECTED) {
     strcpy(wifi_status,"@");
-    Serial.println("");
+    Serial.println("-->  ");
     Serial.println("WiFi connected");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
     Serial.print("GATEWAY: ");
     Serial.println(WiFi.gatewayIP());
     Serial.println("Postavljam MQTT server nakon što sam se spojio na WIFI");
-    //client.setServer(mqtt_server, 1883);
-    client.setServer(WiFi.gatewayIP(), 1883);
+    client.setServer(mqtt_server, 1883);
+    //client.setServer(WiFi.gatewayIP(), 1883);  // OVO OTKOMENTIRAJ !!!!!
+    
     client.setCallback(callback);
   } else {
     Serial.println("WiFi not avilable, try again in 20sec");
@@ -223,7 +334,7 @@ void callback(char* topic, byte* message, unsigned int length) {
     Serial.print((char)message[i]);
     messageTemp += (char)message[i];
   }
-  Serial.println();
+ 
   // Feel free to add more if statements to control more GPIOs with MQTT
   // If a message is received on the topic esp32/output, you check if the message is either "on" or "off". 
   // Changes the output state according to the message
@@ -277,7 +388,7 @@ void loop() {
     // Don't do stuff if you are below your
     // time budget.
     long wifinow = millis();
-    if((WiFi.status() != WL_CONNECTED) && (wifinow - wifilastMsg > 20000)) {
+    if((WiFi.status() != WL_CONNECTED) && (wifinow - wifilastMsg > 30000)) {
       // ako WIFI nije upaljen a proslo je vise od 20sec
       wifilastMsg = wifinow;
       // Postzavi status na ekran
@@ -290,6 +401,7 @@ void loop() {
       }
       client.loop();
     }
+    /*
     ////////////
     /// CHECK SLEEPY TIME !!! :)
     long sleepnow = millis();
@@ -302,28 +414,61 @@ void loop() {
       esp_deep_sleep_start();
     }
     /////////////
+    */
     long now = millis();
     if (now - lastMsg > 5000) {
       lastMsg = now;
       // ČITANJE VAGE
-      Serial.print("UNITS: ");
 
-      strcpy(scale_internal_temperature,"12");
-      strcpy(scale_humidity,            "50");
-      strcpy(scale_temp_ext1,           "32");
-      strcpy(scale_temp_ext2,           "31");
-      Serial.print("Temperature: ");
-      Serial.print("Humidity: ");
+       sensors.requestTemperatures(); 
+
+
+  // Display address from each sensor
+  sensors.getAddress(sensor1, 0);
+  sensors.getAddress(sensor2, 1);
+  sensors.getAddress(sensor3, 2);
+  sensors.getAddress(sensor4, 3);
+
+/*
+      strcpy(sensor_1_temp,         sensors.getTempCByIndex(0));
+      strcpy(sensor_2_temp,         sensors.getTempCByIndex(1));
+      strcpy(sensor_3_temp,         sensors.getTempCByIndex(2));
+      strcpy(sensor_4_temp,         sensors.getTempCByIndex(3));
+*/
+/*
+dtostrf(sensors.getTempC(sensor1), 7, 2, sensor_1_temp);
+dtostrf(sensors.getTempC(sensor2), 7, 2, sensor_2_temp);
+dtostrf(sensors.getTempC(sensor3), 7, 2, sensor_3_temp);
+dtostrf(sensors.getTempC(sensor4), 7, 2, sensor_4_temp);
+*/
+
+dtostrf(sensors.getTempCByIndex(0), 7, 2, sensor_1_temp);
+dtostrf(sensors.getTempCByIndex(1), 7, 2, sensor_2_temp);
+dtostrf(sensors.getTempCByIndex(2), 7, 2, sensor_3_temp);
+dtostrf(sensors.getTempCByIndex(3), 7, 2, sensor_4_temp);
+      
+dtostrf(sensors.getTempCByIndex(0), 7, 0, sensor_1_temp_short);
+dtostrf(sensors.getTempCByIndex(1), 7, 0, sensor_2_temp_short);
+dtostrf(sensors.getTempCByIndex(2), 7, 0, sensor_3_temp_short);
+dtostrf(sensors.getTempCByIndex(3), 7, 0, sensor_4_temp_short);
+
+
+      Serial.println(sensor_1_temp);
+      Serial.println(sensor_2_temp);
+      Serial.println(sensor_3_temp);
+      Serial.println(sensor_4_temp);          
+
+      
       if (client.connected()) {
         // postavi na display
         strcpy(wifi_local_IP,             WiFi.localIP().toString().c_str() );
         strcpy(wifi_gateway_IP,           WiFi.gatewayIP().toString().c_str() );
+       
         // salji vrijednosti
-        client.publish("esp32/vaga",        scale_weight);
-        client.publish("esp32/t1",          scale_temp_ext1);
-        client.publish("esp32/t2",          scale_temp_ext2);
-        client.publish("esp32/temperature", scale_internal_temperature);
-        client.publish("esp32/humidity",    scale_humidity);
+        client.publish("esp32/t1",          sensor_1_temp);
+        client.publish("esp32/t2",          sensor_2_temp);
+        client.publish("esp32/t3",          sensor_3_temp);
+        client.publish("esp32/t4",          sensor_4_temp);
       } else {
         strcpy(wifi_status,"X");
       }
