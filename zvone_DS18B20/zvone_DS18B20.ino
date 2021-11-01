@@ -60,15 +60,13 @@ int status = WL_IDLE_STATUS;
 // the Wifi radio's status
 //SSID of your network
 char prog_status[] = "Starting";
-char ssid[] = "Valkyrie";
+char ssid[] = "NikolaLauraTeo";
 //password of your WPA Network
-char pass[] = "Laminar68";
-char wifi_local_IP[] = "SSID: Valkyrie";
+char pass[] = "12345678Aa";
+char wifi_local_IP[] = "SSID: NikolaLauraTeo";
 //"0.0.0.0";
 char wifi_status[]   = "X";
 char wifi_gateway_IP[] ="PASS: 12345678Aa";
-//char mqtt_server_IP[] =  "MQTT: 0.0.0.0:1883";
-char mqtt_server_IP[] =  "MQTT: 192.168.0.11:1883";
 
 char sensor_1_temp[20] = "? °C";
 char sensor_2_temp[20] = "? °C";
@@ -82,8 +80,13 @@ char sensor_4_temp_short[20] = "...";
 
 byte mac[6];
 // Add your MQTT Broker IP address, example:
+
+//char mqtt_server_IP[] =  "MQTT: 0.0.0.0:1883";
+char mqtt_server_IP[] =  "MQTT: 192.168.0.11:1883";
+
 //const char* mqtt_server = "192.168.1.144";
-const char* mqtt_server = "192.168.0.50";
+const char* mqtt_server = "192.168.0.11";
+
 WiFiClient espClient;
 PubSubClient client(espClient);
 long lastMsg = 0;
