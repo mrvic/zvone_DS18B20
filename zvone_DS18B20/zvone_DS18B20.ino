@@ -82,10 +82,10 @@ byte mac[6];
 // Add your MQTT Broker IP address, example:
 
 //char mqtt_server_IP[] =  "MQTT: 0.0.0.0:1883";
-char mqtt_server_IP[] =  "MQTT: 192.168.0.11:1883";
+char mqtt_server_IP[] =  "MQTT: 127.0.0.1:1883";
 
 //const char* mqtt_server = "192.168.1.144";
-const char* mqtt_server = "192.168.0.11";
+const char* mqtt_server = "192.168.0.108";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -277,9 +277,9 @@ void setup() {
   ///////////////////////////////////////////
   /// SPOJI SE NA WIFI NAKON ŠTO PRIKAŽEŠ EKRAN
   Serial.print("Pokrecem loop() ");
-  // setup_wifi();
-  // client.setServer(mqtt_server, 1883);
-  //  client.setCallback(callback); 
+  //setup_wifi();
+  //lient.setServer(mqtt_server, 1883);
+  //client.setCallback(callback); 
   ////////////////////////////////////////////
 }
 
@@ -306,12 +306,12 @@ void setup_wifi() {
   Serial.println(ssid);
   WiFi.begin(ssid, pass);
   int dotcounter=0;
-  while (WiFi.status() != WL_CONNECTED && dotcounter<3) {
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
     dotcounter++;
   }
-  if(WiFi.status() == WL_CONNECTED) {
+  if(WiFi.status() == WL_CONNECTED & dotcounter >3 ) {
     strcpy(wifi_status,"@");
     Serial.println("-->  ");
     Serial.println("WiFi connected");
